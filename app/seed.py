@@ -31,7 +31,7 @@ def seed_everything():
     print('✅ Пользователи созданы: admin / admin123, logist / logist123')
 
     # =========================================================================
-    # 2. УДАЛЯЕМ СТАРЫЕ КРИТЕРИИ И СОЗДАЕМ НОВЫЕ 10
+    # 2. УДАЛЯЕМ СТАРЫЕ КРИТЕРИИ И СОЗДАЕМ НОВЫЕ 8
     # =========================================================================
     db.session.execute(text('DELETE FROM scenario_criterion'))
     db.session.execute(text('DELETE FROM criterion'))
@@ -41,10 +41,8 @@ def seed_everything():
     criteria_list = [
         ('on_time_rate', 'Своевременность доставки', 'benefit'),
         ('cancellation_rate', 'Доля отменённых рейсов', 'cost'),
-        ('no_show_rate', 'Доля неявок на погрузку', 'cost'),
-        ('damage_rate', 'Доля повреждений груза', 'cost'),
-        ('loss_rate', 'Доля утрат груза', 'cost'),
-        ('accident_rate', 'Доля рейсов с ДТП', 'cost'),
+        ('cargo_safety_rate', 'Сохранность груза', 'benefit'),
+        ('accident_rate', 'Аварийность', 'cost'),
         ('tracking_compliance', 'Доля рейсов с GPS-трекингом', 'benefit'),
         ('pod_rate', 'Доля рейсов с POD', 'benefit'),
         ('feedback_score', 'Средняя оценка клиентов', 'benefit'),

@@ -24,11 +24,11 @@
             <div class="card-status">
               <span class="status {% if s.status == 'расчёт выполнен' %}done{% elif s.status == 'черновик' %}draft{% elif s.status == 'в обработке' %}processing{% endif %}">
                 {% if s.status == 'расчёт выполнен' %}
-                  ✓ Выполнен
+                  Выполнен
                 {% elif s.status == 'в обработке' %}
-                  ↻ В обработке
+                  В обработке
                 {% elif s.status == 'черновик' %}
-                  ○ Черновик
+                  Черновик
                 {% else %}
                   {{ s.status }}
                 {% endif %}

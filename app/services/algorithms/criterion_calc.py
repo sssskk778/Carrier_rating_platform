@@ -1,14 +1,29 @@
 """
 Описание: Модуль расчета критериев оценки перевозчиков.
-Содержит класс CriteriaCalculator, реализующий расчет 10 критериев
-на основе исторических данных о рейсах с применением
-экспоненциального временного взвешивания (decay) и корректирующих коэффициентов.
+Содержит класс CriteriaCalculator, реализующий расчет 8 критериев
+на основе исторических данных о рейсах с двухпериодным взвешиванием.
+
+Критерии:
+  on_time_rate        (benefit) — своевременная доставка
+  cancellation_rate   (cost)    — доля отменённых рейсов
+  cargo_safety_rate   (benefit) — сохранность груза
+  accident_rate       (cost)    — аварийность
+  tracking_compliance (benefit) — GPS-трекинг
+  pod_rate            (benefit) — документооборот (POD)
+  feedback_score      (benefit) — репутация
+  rate_per_km         (cost)    — ставка за км
+
+Периоды:
+  - Последние 60 дней  — вес 0.8 (актуальные данные)
+  - От 61 до 360 дней  — вес 0.2 (история)
+  Перевозчик исключается если за последние 60 дней < 3 доставленных рейсов.
+
 Автор: Лосева Е.А.
 Дата создания: ДД.ММ.ГГГГ
 Последнее изменение: ДД.ММ.ГГГГ
 Контакт: ekaterinaloseva91@gmail.com
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models import Carrier, Shipment
 
 ACCIDENT_SEVERITY_COEFFICIENTS = {
@@ -17,60 +32,92 @@ ACCIDENT_SEVERITY_COEFFICIENTS = {
     'Тяжелое': 2.0,
 }
 
+PERIOD_SHORT = 60     # дней — актуальный период
+PERIOD_LONG  = 360    # дней — горизонт истории
+WEIGHT_SHORT = 0.8    # вес актуального периода
+WEIGHT_LONG  = 0.2    # вес исторического периода
+MIN_RECENT   = 3      # минимум доставленных рейсов за 60 дней
+
+
 class CriteriaCalculator:
 
-    def __init__(self, decay_halflife=180):
-        """
-        Назначение:
-            Создает объект калькулятора критериев.
-        Параметры:
-            decay_halflife (int): Период полураспада веса в днях.
-        Возвращает:
-            None.
-        """
-        self.decay_halflife = decay_halflife
-        self.today = datetime.now().date()
-        self.carriers = []
+    def __init__(self):
+        self.today        = datetime.now().date()
+        self.cutoff_short = self.today - timedelta(days=PERIOD_SHORT)
+        self.cutoff_long  = self.today - timedelta(days=PERIOD_LONG)
+        self.carriers  = []
         self.shipments = []
 
-    def _decay_weight(self, date_value):
-        """
-        Назначение:
-            Вычисляет вес рейса по формуле линейного распада.
-        Параметры:
-            date_value (datetime): Дата погрузки рейса.
-        Возвращает:
-            float: Вес рейса от 0 до 1.
-        """
-        scale = 730
-        offset = 0
-        decay = 0.5
-
-        age_days = (self.today - date_value.date()).days
-        if age_days < 0:
-            age_days = 0
-
-        s = scale / (1.0 - decay)
-        return max(0.0, (s - max(0.0, age_days - offset)) / s)
+    # ------------------------------------------------------------------
+    # Загрузка данных
+    # ------------------------------------------------------------------
 
     def load_data(self):
         """
         Назначение:
-            Загружает всех перевозчиков и все рейсы из базы данных.
+            Загружает всех перевозчиков и рейсы из базы данных.
         Параметры:
             Нет.
         Возвращает:
             CriteriaCalculator: self.
         """
-        self.carriers = Carrier.query.all()
+        self.carriers  = Carrier.query.all()
         self.shipments = Shipment.query.all()
         return self
+
+    # ------------------------------------------------------------------
+    # Вспомогательные методы
+    # ------------------------------------------------------------------
+
+    def _split(self, shipments):
+        """
+        Назначение:
+            Разбивает список рейсов на два периода.
+            recent  — последние 60 дней (вес 0.8)
+            history — от 61 до 360 дней  (вес 0.2)
+        Параметры:
+            shipments (list[Shipment]): Список рейсов.
+        Возвращает:
+            tuple: (recent, history).
+        """
+        recent  = [s for s in shipments if s.pickup_window_start.date() >= self.cutoff_short]
+        history = [s for s in shipments if self.cutoff_long <= s.pickup_window_start.date() < self.cutoff_short]
+        return recent, history
+
+    def _weighted_ratio(self, shipments, condition_fn):
+        """
+        Назначение:
+            Считает взвешенную долю рейсов удовлетворяющих условию.
+            Формула: (w_r × match_r/total_r + w_h × match_h/total_h) / (w_r + w_h) × 100%
+        Параметры:
+            shipments (list[Shipment]): Список рейсов.
+            condition_fn (callable): Функция bool(shipment).
+        Возвращает:
+            float: Процент от 0 до 100.
+        """
+        recent, history = self._split(shipments)
+        result  = 0.0
+        total_w = 0.0
+
+        for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
+            if not group:
+                continue
+            match    = sum(1 for s in group if condition_fn(s))
+            result  += w * (match / len(group))
+            total_w += w
+
+        return round(result / total_w * 100, 2) if total_w > 1e-12 else 0.0
+
+    # ------------------------------------------------------------------
+    # Основной метод расчёта
+    # ------------------------------------------------------------------
 
     def calculate_all(self):
         """
         Назначение:
-            Выполняет расчет 10 критериев для всех перевозчиков.
-            Перевозчики без доставленных рейсов пропускаются.
+            Выполняет расчёт 8 критериев для всех перевозчиков.
+            Перевозчики с менее чем MIN_RECENT доставленных рейсов
+            за последние 60 дней исключаются из расчёта.
         Параметры:
             Нет.
         Возвращает:
@@ -82,7 +129,11 @@ class CriteriaCalculator:
             shipments = [s for s in self.shipments if s.carrier_id == carrier.carrier_id]
             delivered = [s for s in shipments if s.status == 'Доставлено']
 
-            if not delivered:
+            recent_delivered = [
+                s for s in delivered
+                if s.pickup_window_start.date() >= self.cutoff_short
+            ]
+            if len(recent_delivered) < MIN_RECENT:
                 continue
 
             results[carrier.carrier_id] = {
@@ -90,9 +141,7 @@ class CriteriaCalculator:
                 'criteria_raw': {
                     'on_time_rate':        self._on_time(delivered),
                     'cancellation_rate':   self._cancellation(shipments),
-                    'no_show_rate':        self._no_show(shipments),
-                    'damage_rate':         self._damage(delivered),
-                    'loss_rate':           self._loss(delivered),
+                    'cargo_safety_rate':   self._cargo_safety(delivered),
                     'accident_rate':       self._accident(delivered),
                     'tracking_compliance': self._tracking(delivered),
                     'pod_rate':            self._pod(delivered),
@@ -103,189 +152,153 @@ class CriteriaCalculator:
 
         return results
 
+    # ------------------------------------------------------------------
+    # Критерии
+    # ------------------------------------------------------------------
+
     def _on_time(self, delivered):
         """
         Назначение:
-            Доля своевременных рейсов: actual_delivery_time <= delivery_window_end.
+            Своевременная доставка (benefit).
+            Количество рейсов выполненных в срок / общее количество × 100%.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
             float: Процент от 0 до 100.
         """
-        total = 0.0
-        on_time = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.actual_delivery_time <= s.delivery_window_end:
-                on_time += w
-        return round(on_time / total * 100, 2)
+        return self._weighted_ratio(
+            delivered,
+            lambda s: bool(s.actual_delivery_time and s.delivery_window_end
+                           and s.actual_delivery_time <= s.delivery_window_end)
+        )
 
     def _cancellation(self, shipments):
         """
         Назначение:
-            Доля отмененных рейсов: status == 'Отменено'.
+            Доля отменённых рейсов (cost).
+            Количество отменённых рейсов / общее количество × 100%.
         Параметры:
             shipments (list[Shipment]): Все рейсы перевозчика.
         Возвращает:
             float: Процент от 0 до 100.
         """
-        total = 0.0
-        cancelled = 0.0
-        for s in shipments:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.status == 'Отменено':
-                cancelled += w
-        return round(cancelled / total * 100, 2)
+        return self._weighted_ratio(shipments, lambda s: s.status == 'Отменено')
 
-    def _no_show(self, shipments):
+    def _cargo_safety(self, delivered):
         """
         Назначение:
-            Доля неявок: status == 'Не приехал'.
-        Параметры:
-            shipments (list[Shipment]): Все рейсы перевозчика.
-        Возвращает:
-            float: Процент от 0 до 100.
-        """
-        total = 0.0
-        noshow = 0.0
-        for s in shipments:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.status == 'Не приехал':
-                noshow += w
-        return round(noshow / total * 100, 2)
-
-    def _damage(self, delivered):
-        """
-        Назначение:
-            Доля рейсов с повреждением: claim_type == 'Повреждение'.
+            Сохранность груза (benefit).
+            Доля рейсов БЕЗ повреждения или потери груза.
+            Формула: (1 - доля_рейсов_с_проблемами) × 100%.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
             float: Процент от 0 до 100.
         """
-        total = 0.0
-        damage = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.claim_type == 'Повреждение':
-                damage += w
-        return round(damage / total * 100, 2)
-
-    def _loss(self, delivered):
-        """
-        Назначение:
-            Доля рейсов с утратой: claim_type == 'Потеря'.
-        Параметры:
-            delivered (list[Shipment]): Доставленные рейсы.
-        Возвращает:
-            float: Процент от 0 до 100.
-        """
-        total = 0.0
-        loss = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.claim_type == 'Потеря':
-                loss += w
-        return round(loss / total * 100, 2)
+        damaged = self._weighted_ratio(
+            delivered,
+            lambda s: s.claim_type in ('Повреждение', 'Потеря')
+        )
+        return round(100.0 - damaged, 2)
 
     def _accident(self, delivered):
         """
         Назначение:
-            Доля ДТП по вине перевозчика с учетом тяжести.
-            Тяжесть: Легкое=1.0, Среднее=1.5, Тяжелое=2.0.
+            Аварийность (cost).
+            Сумма (количество ДТП × коэффициент тяжести) / общее количество рейсов × 100%.
+            Коэффициенты: Легкое=0.5, Среднее=1.0, Тяжелое=2.0.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
-            float: Процент от 0 до 100.
+            float: Индекс от 0 до 100.
         """
-        accident_total = 0.0
-        fleet_total = 0.0
+        recent, history = self._split(delivered)
+        result  = 0.0
+        total_w = 0.0
 
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            fleet_total += w
-            if s.carrier_fault and s.accident_severity and s.accident_severity != 'Нет':
-                severity = ACCIDENT_SEVERITY_COEFFICIENTS.get(s.accident_severity, 1.0)
-                accident_total += w * severity
+        for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
+            if not group:
+                continue
+            acc_sum = sum(
+                ACCIDENT_SEVERITY_COEFFICIENTS.get(s.accident_severity, 1.0)
+                for s in group
+                if s.carrier_fault and s.accident_severity and s.accident_severity != 'Нет'
+            )
+            result  += w * (acc_sum / len(group))
+            total_w += w
 
-        return round(accident_total / fleet_total * 100, 2)
+        return round(result / total_w * 100, 2) if total_w > 1e-12 else 0.0
 
     def _tracking(self, delivered):
         """
         Назначение:
-            Доля рейсов с GPS: has_gps == True.
+            Отслеживание — доля рейсов с GPS-трекингом (benefit).
+            Количество рейсов с GPS / общее количество × 100%.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
             float: Процент от 0 до 100.
         """
-        total = 0.0
-        gps = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.has_gps:
-                gps += w
-        return round(gps / total * 100, 2)
+        return self._weighted_ratio(delivered, lambda s: bool(s.has_gps))
 
     def _pod(self, delivered):
         """
         Назначение:
-            Доля рейсов с POD: has_pod == True.
+            Документооборот — доля рейсов с подтверждением доставки POD (benefit).
+            Количество рейсов с POD / общее количество × 100%.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
             float: Процент от 0 до 100.
         """
-        total = 0.0
-        pod = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            if s.has_pod:
-                pod += w
-        return round(pod / total * 100, 2)
+        return self._weighted_ratio(delivered, lambda s: bool(s.has_pod))
 
     def _feedback(self, delivered):
         """
         Назначение:
-            Средневзвешенная оценка клиентов (1-5).
+            Репутация — средняя оценка клиентов (benefit).
+            Сумма всех оценок / общее количество рейсов.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
         Возвращает:
             float: Оценка от 1.0 до 5.0.
         """
-        total = 0.0
-        score = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            score += s.client_rating * w
-        return round(score / total, 2)
+        recent, history = self._split(delivered)
+        result  = 0.0
+        total_w = 0.0
+
+        for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
+            if not group:
+                continue
+            result  += w * (sum(float(s.client_rating) for s in group) / len(group))
+            total_w += w
+
+        return round(result / total_w, 2) if total_w > 1e-12 else 0.0
 
     def _rpk(self, delivered):
         """
         Назначение:
-            Средневзвешенная цена за километр.
-
+            Ставка за км (cost).
+            Сумма цен за км по каждому рейсу / общее количество рейсов.
+            Считается как суммарная стоимость / суммарное расстояние
+            внутри каждого периода.
         Параметры:
             delivered (list[Shipment]): Доставленные рейсы.
-
         Возвращает:
             float: Рублей за км.
         """
-        total = 0.0
-        price_sum = 0.0
-        km_sum = 0.0
-        for s in delivered:
-            w = self._decay_weight(s.pickup_window_start)
-            total += w
-            rpk = float(s.price) / float(s.distance_km)
-            price_sum += rpk * w
+        recent, history = self._split(delivered)
+        result  = 0.0
+        total_w = 0.0
 
-        return round(price_sum / total, 2)
+        for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
+            if not group:
+                continue
+            total_price = sum(float(s.price) for s in group)
+            total_dist  = sum(float(s.distance_km) for s in group if float(s.distance_km) > 0)
+            if total_dist < 1e-12:
+                continue
+            result  += w * (total_price / total_dist)
+            total_w += w
+
+        return round(result / total_w, 2) if total_w > 1e-12 else 0.0

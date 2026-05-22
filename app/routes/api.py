@@ -75,7 +75,6 @@ def login_post(data):
     """
     Авторизация пользователя.
     ---
-    tags: [Auth]
     parameters:
       - in: body
         schema:
@@ -100,7 +99,6 @@ def register_post(data):
     """
     Регистрация пользователя.
     ---
-    tags: [Auth]
     responses:
       201: {description: Пользователь создан}
       400: {description: Логин уже занят}
@@ -121,7 +119,6 @@ def logout_post():
     """
     Выход из системы.
     ---
-    tags: [Auth]
     responses:
       200: {description: Выход выполнен}
     """
@@ -136,7 +133,6 @@ def me():
     """
     Информация о текущем пользователе.
     ---
-    tags: [Auth]
     responses:
       200: {description: Данные пользователя}
       401: {description: Не авторизован}
@@ -156,7 +152,6 @@ def dataset_list():
     """
     Список датасетов.
     ---
-    tags: [Datasets]
     responses:
       200: {description: Список датасетов}
     """
@@ -169,7 +164,6 @@ def dataset_detail(did):
     """
     Детальная информация о датасете.
     ---
-    tags: [Datasets]
     parameters:
       - in: path
         name: did
@@ -188,7 +182,6 @@ def upload_dataset():
     """
     Загрузка Excel-файла с данными.
     ---
-    tags: [Datasets]
     consumes: [multipart/form-data]
     responses:
       202: {description: Задача импорта создана}
@@ -225,7 +218,6 @@ def delete_dataset(did):
     """
     Удаление датасета.
     ---
-    tags: [Datasets]
     parameters:
       - in: path
         name: did
@@ -252,7 +244,6 @@ def carriers():
     """
     Список перевозчиков.
     ---
-    tags: [Carriers]
     responses:
       200: {description: Список перевозчиков}
     """
@@ -265,7 +256,6 @@ def carrier_detail(cid):
     """
     Детальная информация о перевозчике.
     ---
-    tags: [Carriers]
     parameters:
       - in: path
         name: cid
@@ -307,7 +297,6 @@ def scenario_list():
     """
     Список сценариев.
     ---
-    tags: [Scenarios]
     responses:
       200: {description: Список сценариев}
     """
@@ -328,7 +317,6 @@ def scenario_create(data):
     """
     Создание сценария.
     ---
-    tags: [Scenarios]
     responses:
       201: {description: Сценарий создан}
       422: {description: Ошибка валидации}
@@ -347,7 +335,6 @@ def scenario_update(sid, data):
     """
     Редактирование сценария.
     ---
-    tags: [Scenarios]
     parameters:
       - in: path
         name: sid
@@ -368,7 +355,6 @@ def scenario_delete(sid):
     """
     Удаление сценария.
     ---
-    tags: [Scenarios]
     parameters:
       - in: path
         name: sid
@@ -415,7 +401,6 @@ def scenario_run(sid):
     """
     Запуск расчёта рейтинга.
     ---
-    tags: [Runs]
     parameters:
       - in: path
         name: sid
@@ -432,7 +417,6 @@ def scenario_runs(sid):
     """
     История запусков сценария.
     ---
-    tags: [Runs]
     parameters:
       - in: path
         name: sid
@@ -449,7 +433,6 @@ def run_detail(rid):
     """
     Детализация запуска.
     ---
-    tags: [Runs]
     parameters:
       - in: path
         name: rid
@@ -470,7 +453,6 @@ def latest_results(sid):
     """
     Последние результаты расчёта.
     ---
-    tags: [Runs]
     responses:
       200: {description: Результаты расчёта}
     """
@@ -493,7 +475,6 @@ def export_excel(sid):
     """
     Экспорт результатов в Excel.
     ---
-    tags: [Export]
     responses:
       200: {description: Excel-файл}
       404: {description: Нет результатов}
@@ -514,15 +495,4 @@ def export_excel(sid):
 @api_bp.get('/tasks/<task_id>')
 @login_required
 def task_status(task_id):
-    """
-    Статус фоновой задачи.
-    ---
-    tags: [Tasks]
-    parameters:
-      - in: path
-        name: task_id
-        type: string
-    responses:
-      200: {description: Статус задачи}
-    """
     return success(task_svc.get_status(task_id))
