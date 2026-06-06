@@ -12,8 +12,8 @@ class TestDelete:
         Ожидание: статус 200, датасет удалён из БД.
         """
         with admin_client.application.app_context():
-            from app.models import Dataset
-            from app import db
+            from src.models import Dataset
+            from src import db
             ds = Dataset(name='Тест', file_name='test.xlsx',
                          description='', records_count=0)
             db.session.add(ds)

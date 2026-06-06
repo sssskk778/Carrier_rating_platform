@@ -13,7 +13,7 @@ class TestRun:
         TestCase11. POST /api/scenarios/{sid}/run при наличии данных в БД.
         Ожидание: статус 202, задача создана, возвращён task_id.
         """
-        with patch('app.services.core.task_service.TaskService.start_run') as mock_run:
+        with patch('src.services.core.task_service.TaskService.start_run') as mock_run:
             mock_run.return_value = {'task_id': 'run-task-id', 'status': 'запущен'}
             response = admin_client.post(f'/api/scenarios/{scenario_id}/run')
         assert response.status_code == 202
@@ -26,7 +26,7 @@ class TestRun:
         TestCase12. GET /api/tasks/{task_id} после завершения расчёта.
         Ожидание: статус 200, статус SUCCESS, результаты сохранены.
         """
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': 'run-task-id',
                 'status': 'SUCCESS',
@@ -43,12 +43,12 @@ class TestRun:
         TestCase13. POST /api/scenarios/{sid}/run при отсутствии данных в БД.
         Ожидание: статус 202, после выполнения статус FAILURE.
         """
-        with patch('app.services.core.task_service.TaskService.start_run') as mock_run:
+        with patch('src.services.core.task_service.TaskService.start_run') as mock_run:
             mock_run.return_value = {'task_id': 'fail-task-id', 'status': 'запущен'}
             response = admin_client.post(f'/api/scenarios/{scenario_id}/run')
         assert response.status_code == 202
 
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': 'fail-task-id',
                 'status': 'FAILURE',

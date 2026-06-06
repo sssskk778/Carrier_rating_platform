@@ -13,7 +13,7 @@ class TestAccessControl:
         Ожидание: статус 403, доступ запрещён.
         """
         with user_client.application.app_context():
-            from app.models import Criterion
+            from src.models import Criterion
             criterion_ids = [c.id for c in Criterion.query.all()[:2]]
 
         response = user_client.post('/api/scenarios',
@@ -32,8 +32,8 @@ class TestAccessControl:
         Ожидание: статус 403, доступ запрещён.
         """
         with user_client.application.app_context():
-            from app.models import Scenario, Criterion, ScenarioCriterion, User
-            from app import db
+            from src.models import Scenario, Criterion, ScenarioCriterion, User
+            from src import db
             admin = User.query.filter_by(username='admin').first()
             criteria = Criterion.query.all()[:2]
             s = Scenario(

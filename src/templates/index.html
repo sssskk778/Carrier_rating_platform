@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Сценарии{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-head">
+    <h1>Сценарии оценки</h1>
+    {% if current_user.role == 'admin' %}
+      <button class="btn-primary" id="createScenarioBtn">Создать сценарий</button>
+    {% endif %}
+  </div>
+
+  {% if scenarios %}
+    <div class="scenarios-grid">
+      {% for s in scenarios %}
+        {% if current_user.role == 'admin' or s.status == 'расчёт выполнен' %}
+        <div class="scenario-card color-{{ loop.index % 6 + 1 }}" data-scenario-id="{{ s.id }}">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="scenario-id">#{{ s.id }}</span>
+              <h3 class="scenario-name">{{ s.name }}</h3>
+            </div>
+            <div class="card-status">
+              <span class="status {% if s.status == 'расчёт выполнен' %}done{% elif s.status == 'черновик' %}draft{% elif s.status == 'в обработке' %}processing{% endif %}">
+                {% if s.status == 'расчёт выполнен' %}Выполнен
+                {% elif s.status == 'в обработке' %}В обработке
+                {% elif s.status == 'черновик' %}Черновик
+                {% else %}{{ s.status }}{% endif %}
+              </span>
+            </div>
+          </div>
+
+          <div class="scenario-description">
+            {% if s.description %}{{ s.description }}
+            {% else %}<span class="no-description">Описание не указано</span>{% endif %}
+          </div>
+
+          <div class="scenario-meta">
+            <div class="meta-item">
+              <span class="meta-label">Метод расчёта</span>
+              <span class="meta-value">{{ s.method }}</span>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            {% if current_user.role == 'admin' %}
+              <a href="{{ url_for('web.scenario_page', sid=s.id) }}" class="icon-link" title="Настройка"><span>⚙️</span></a>
+              <button class="icon-link run-scenario-btn" data-scenario-id="{{ s.id }}" title="Рассчитать рейтинг"><span>▶️</span></button>
+            {% endif %}
+            <a href="{{ url_for('web.results_page', sid=s.id) }}" class="icon-link" title="Смотреть результаты"><span>📊</span></a>
+            <a href="{{ url_for('web.scenario_history', sid=s.id) }}" class="icon-link" title="История запусков"><span>📋</span></a>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>Нет созданных сценариев</p>
+      {% if current_user.role == 'admin' %}
+        <button class="btn-primary" id="createFirstScenarioBtn">Создать первый сценарий</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+function showMessage(message, isError = false) {
+  const existing = document.querySelector('.toast-message');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = `toast-message ${isError ? 'error' : 'success'}`;
+  div.textContent = message;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 3000);
+}
+
+function createScenario() { window.location.href = '/scenarios/0'; }
+
+document.getElementById('createScenarioBtn')?.addEventListener('click', createScenario);
+document.getElementById('createFirstScenarioBtn')?.addEventListener('click', createScenario);
+
+document.querySelectorAll('.run-scenario-btn').forEach(btn => {
+  btn.addEventListener('click', async function() {
+    const scenarioId    = this.dataset.scenarioId;
+    const originalHTML  = this.innerHTML;
+    const card          = this.closest('.scenario-card');
+    const statusEl      = card.querySelector('.status');
+
+    this.innerHTML = '<span>⏳</span>';
+    this.disabled  = true;
+    if (statusEl) {
+      statusEl.textContent = 'В обработке';
+      statusEl.className   = 'status processing';
+    }
+
+    try {
+      const res  = await fetch(`/api/scenarios/${scenarioId}/run`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Ошибка расчёта');
+
+      const taskId = json.data.task_id;
+      showMessage('Расчёт запущен...');
+
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const s = (await (await fetch(`/api/tasks/${taskId}`)).json()).data;
+        if (s.status === 'SUCCESS') break;
+        if (s.status === 'FAILURE') throw new Error(s.error || 'Ошибка расчёта');
+      }
+
+      showMessage('Расчёт завершён!');
+      this.innerHTML = '<span>▶️</span>';
+      this.disabled  = false;
+      if (statusEl) {
+        statusEl.textContent = 'Выполнен';
+        statusEl.className   = 'status done';
+      }
+
+    } catch (err) {
+      showMessage(err.message, true);
+      this.innerHTML = originalHTML;
+      this.disabled  = false;
+      if (statusEl) {
+        statusEl.textContent = 'Черновик';
+        statusEl.className   = 'status draft';
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

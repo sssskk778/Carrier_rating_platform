@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% block title %}Сценарий{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-head">
+    <a href="{{ url_for('web.index') }}" class="back-arrow">←</a>
+    <h1>Настройка сценария</h1>
+    <div class="spacer"></div>
+  </div>
+
+  <form id="scenarioEditForm" class="stack">
+    <input id="name" type="text" value="{{ scenario.name }}" placeholder="Название сценария">
+    <textarea id="description" rows="2" placeholder="Описание">{{ scenario.description or '' }}</textarea>
+
+    <select id="method">
+      <option value="topsis">TOPSIS</option>
+      <option value="vikor">VIKOR</option>
+    </select>
+
+    <div id="criteriaBox" class="criteria-container"></div>
+    <div id="criteriaLoading" class="empty-state" style="display:none;">Загрузка...</div>
+
+    <div id="swaraPanel" style="margin-top:16px; display:none;">
+      <h3 class="swara-section-title">Настройка весовых коэффициентов</h3>
+      <p class="swara-section-hint">Отсортируйте критерии по важности</p>
+      <div id="swaraContainer" class="swara-container"></div>
+
+    </div>
+
+    <div class="scenario-form-actions">
+      <button class="btn btn-danger" type="button" id="deleteBtn">Удалить</button>
+      <button class="btn" type="button" id="saveBtn">Сохранить</button>
+    </div>
+  </form>
+</div>
+
+<style>
+.swara-section-title  { margin: 0 0 8px; font-size: 16px; font-weight: 500; color: var(--c-navy); }
+.swara-section-hint   { font-size: 13px; color: var(--c-muted); margin-bottom: 16px; }
+.scenario-form-actions { display: flex; justify-content: space-between; margin-top: 16px; }
+</style>
+
+<script>
+const scenarioId = {{ scenario.id }};
+let currentScenario = null;
+let isLoading = false;
+let swaraRanking = [];
+let swaraSValues = {};
+let CRITERIA_GROUPS = {};
+let CRITERIA_NAMES = {};
+
+function showMessage(message, isError = false) {
+  const existing = document.querySelector('.toast-message');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = `toast-message ${isError ? 'error' : ''}`;
+  div.textContent = message;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 2500);
+}
+
+function getCheckedCodes() {
+  return Array.from(document.querySelectorAll('#criteriaBox input:checked'))
+    .map(cb => cb.closest('.check-card').dataset.code);
+}
+
+async function loadCriteriaGroups() {
+  const res = await fetch('/api/criteria');
+  const criteria = (await res.json()).data;
+
+  CRITERIA_GROUPS = {
+    'Надёжность исполнения':           { keys: ['on_time_rate', 'cancellation_rate'], names: {} },
+    'Сохранность и безопасность':      { keys: ['cargo_safety_rate', 'accident_rate'], names: {} },
+    'Прозрачность и документооборот':  { keys: ['tracking_compliance', 'pod_rate'], names: {} },
+    'Репутация':                       { keys: ['feedback_score'], names: {} },
+    'Цена':                            { keys: ['rate_per_km'], names: {} }
+  };
+
+  criteria.forEach(c => {
+    CRITERIA_NAMES[c.code] = c.name;
+    for (const group of Object.values(CRITERIA_GROUPS)) {
+      if (group.keys.includes(c.code)) group.names[c.code] = c.name;
+    }
+  });
+}
+
+async function loadScenario() {
+  await loadCriteriaGroups();
+  if (scenarioId === 0) {
+    currentScenario = { name: '', description: '', method: 'topsis', criterion_ids: [] };
+    document.getElementById('method').value = 'topsis';
+    await loadCriteria();
+    return;
+  }
+  try {
+    const sRes = await fetch(`/api/scenarios/${scenarioId}`);
+    if (!sRes.ok) throw new Error('Ошибка загрузки сценария');
+    currentScenario = (await sRes.json()).data;
+    document.getElementById('name').value = currentScenario.name;
+    document.getElementById('description').value = currentScenario.description || '';
+    document.getElementById('method').value = currentScenario.method || 'topsis';
+
+    const swaraRes = await fetch(`/api/scenarios/${scenarioId}/weights/swara`);
+    if (swaraRes.ok) {
+      const swaraData = (await swaraRes.json()).data;
+      swaraRanking = swaraData.ranking || [];
+      swaraSValues = {};
+      if (swaraData.s_values && swaraData.ranking) {
+        for (let i = 1; i < swaraData.ranking.length; i++) {
+          swaraSValues[swaraData.ranking[i]] = Math.round(swaraData.s_values[i - 1] * 100);
+        }
+      }
+    }
+    await loadCriteria();
+  } catch (err) {
+    showMessage(err.message, true);
+  }
+}
+
+async function loadCriteria() {
+  if (isLoading) return;
+  const container = document.getElementById('criteriaBox');
+  const loading = document.getElementById('criteriaLoading');
+  isLoading = true;
+  container.style.display = 'none';
+  loading.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/criteria');
+    if (!res.ok) throw new Error('Ошибка загрузки критериев');
+    const criteriaList = (await res.json()).data;
+    const criteriaMap = new Map(criteriaList.map(c => [c.code, c]));
+    const selected = new Set((currentScenario.criterion_ids || []).map(Number));
+
+    let html = '';
+    for (const [groupName, groupData] of Object.entries(CRITERIA_GROUPS)) {
+      const groupCriteria = groupData.keys
+        .map(key => criteriaMap.get(key)).filter(Boolean)
+        .map(c => ({ id: c.id, code: c.code, name: groupData.names[c.code] || c.name }));
+      if (!groupCriteria.length) continue;
+
+      html += `<div class="criteria-group">
+        <div class="criteria-group-header" data-group="${groupName.replace(/\s/g,'_')}">
+          <span>${groupName}</span><span class="toggle-icon">▼</span>
+        </div>
+        <div class="criteria-grid">`;
+      groupCriteria.forEach(crit => {
+        html += `<label class="check-card" data-id="${crit.id}" data-code="${crit.code}">
+          <input type="checkbox" value="${crit.id}" ${selected.has(crit.id) ? 'checked' : ''}>
+          <span class="criterion-name">${crit.name}</span>
+        </label>`;
+      });
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+
+    container.querySelectorAll('.criteria-group-header').forEach(h => {
+      h.addEventListener('click', function() { this.classList.toggle('collapsed'); });
+    });
+    container.querySelectorAll('.check-card input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        swaraRanking = swaraRanking.filter(code => getCheckedCodes().includes(code));
+        renderSwaraPanel();
+      });
+    });
+
+    container.style.display = 'block';
+    document.getElementById('swaraPanel').style.display = 'block';
+    renderSwaraPanel();
+  } catch (err) {
+    showMessage(err.message, true);
+  } finally {
+    isLoading = false;
+    loading.style.display = 'none';
+  }
+}
+
+function renderSwaraPanel() {
+  const container = document.getElementById('swaraContainer');
+  const checkedCodes = getCheckedCodes();
+  Object.keys(swaraSValues).forEach(code => { if (!checkedCodes.includes(code)) delete swaraSValues[code]; });
+
+  if (checkedCodes.length < 2) {
+    container.innerHTML = '<p class="empty-state">Выберите минимум 2 критерия для настройки SWARA</p>';
+    return;
+  }
+
+  swaraRanking = [
+    ...swaraRanking.filter(code => checkedCodes.includes(code)),
+    ...checkedCodes.filter(code => !swaraRanking.includes(code))
+  ];
+
+  container.innerHTML = swaraRanking.map((code, index) => {
+    const name = CRITERIA_NAMES[code] || code;
+    const isFirst = index === 0;
+    const aboveName = index > 0 ? (CRITERIA_NAMES[swaraRanking[index - 1]] || swaraRanking[index - 1]) : '';
+    const sValue = swaraSValues[code] !== undefined ? swaraSValues[code] : 20;
+    return `<div class="swara-item" draggable="true" data-code="${code}">
+      <span class="swara-rank">${index + 1}.</span>
+      <span class="swara-name">${name}</span>
+      ${isFirst
+        ? '<span class="swara-hint">самый важный</span>'
+        : `<div class="swara-right">
+            <span>«${aboveName}» важнее на</span>
+            <input type="number" class="swara-input" data-code="${code}" value="${sValue}" min="0" max="100" step="1">
+            <span class="swara-unit">%</span>
+          </div>`
+      }
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.swara-item').forEach(item => {
+    item.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', item.dataset.code); item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    item.addEventListener('dragover', e => e.preventDefault());
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      const from = e.dataTransfer.getData('text/plain');
+      const to = item.dataset.code;
+      if (from !== to) {
+        const fi = swaraRanking.indexOf(from), ti = swaraRanking.indexOf(to);
+        swaraRanking.splice(fi, 1);
+        swaraRanking.splice(ti, 0, from);
+        renderSwaraPanel();
+      }
+    });
+  });
+
+  container.querySelectorAll('.swara-input').forEach(input => {
+    const update = () => {
+      let v = parseFloat(input.value) || 0;
+      v = Math.max(0, Math.min(100, v));
+      input.value = v;
+      swaraSValues[input.dataset.code] = v;
+    };
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', e => {
+      if (!/^[0-9]$/.test(e.key) && !['Backspace','Delete','Tab','Escape','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) e.preventDefault();
+    });
+    input.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      if (/^\d+$/.test(text)) { input.value = Math.max(0, Math.min(100, parseInt(text,10))); swaraSValues[input.dataset.code] = +input.value; }
+    });
+  });
+
+}
+
+
+function getPayload() {
+  return {
+    name: document.getElementById('name').value.trim(),
+    description: document.getElementById('description').value.trim(),
+    method: document.getElementById('method').value,
+    criterion_ids: Array.from(document.querySelectorAll('#criteriaBox input:checked')).map(x => Number(x.value)),
+    swara_config: { ranking: swaraRanking, s_values: swaraRanking.slice(1).map(code => (swaraSValues[code] !== undefined ? swaraSValues[code] : 20) / 100) }
+  };
+}
+
+function validate(payload) {
+  if (!payload.name) return 'Введите название';
+  if (payload.criterion_ids.length < 2) return 'Выберите минимум 2 критерия';
+  if (payload.swara_config.ranking.length < 2) return 'Настройте важность критериев';
+  return null;
+}
+
+async function saveScenario(showToast = true) {
+  const payload = getPayload();
+  const err = validate(payload);
+  if (err) { showMessage(err, true); return false; }
+  try {
+    const isNew = scenarioId === 0;
+    const res = await fetch(isNew ? '/api/scenarios' : `/api/scenarios/${scenarioId}`, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(((await res.json()).error) || 'Ошибка сохранения');
+    const savedId = isNew ? (await res.json()).data.id : scenarioId;
+    await fetch(`/api/scenarios/${savedId}/weights/swara`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload.swara_config)
+    });
+    if (showToast) showMessage('Сохранено');
+    setTimeout(() => { window.location.href = '/'; }, 500);
+    return true;
+  } catch (err) {
+    showMessage(err.message, true);
+    return false;
+  }
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => saveScenario(true));
+
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  if (scenarioId === 0) { window.location.href = '/'; return; }
+  if (!confirm(`Удалить сценарий "${document.getElementById('name').value}"?`)) return;
+  try {
+    const res = await fetch(`/api/scenarios/${scenarioId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Ошибка удаления');
+    showMessage('Сценарий удалён');
+    setTimeout(() => window.location.href = '/', 500);
+  } catch (err) { showMessage(err.message, true); }
+});
+
+document.getElementById('name').addEventListener('keypress', e => {
+  if (e.key === 'Enter') { e.preventDefault(); saveScenario(true); }
+});
+
+loadScenario();
+</script>
+{% endblock %}

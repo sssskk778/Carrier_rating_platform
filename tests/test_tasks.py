@@ -13,7 +13,7 @@ class TestTaskQueue:
         TestCase25. POST /api/datasets/upload, воркер отключён.
         Ожидание: статус 202, task_id возвращён — задача принята очередью.
         """
-        with patch('app.services.core.task_service.TaskService.start_import') as mock_import:
+        with patch('src.services.core.task_service.TaskService.start_import') as mock_import:
             mock_import.return_value = {'task_id': 'queued-task-id', 'status': 'запущен'}
             data = {
                 'file': (io.BytesIO(b'PK\x03\x04'), 'test.xlsx'),
@@ -30,7 +30,7 @@ class TestTaskQueue:
         TestCase26. GET /api/tasks/{task_id} сразу после создания задачи.
         Ожидание: статус 200, статус задачи PENDING.
         """
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': 'new-task-id',
                 'status': 'PENDING',
@@ -46,7 +46,7 @@ class TestTaskQueue:
         TestCase27. GET /api/tasks/{task_id} во время выполнения расчёта.
         Ожидание: статус 200, статус задачи STARTED.
         """
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': 'running-task-id',
                 'status': 'STARTED',
@@ -63,13 +63,13 @@ class TestTaskQueue:
         GET /api/tasks/{task_id}.
         Ожидание: статус 200, статус SUCCESS, результат содержит run_id.
         """
-        with patch('app.services.core.task_service.TaskService.start_run') as mock_run:
+        with patch('src.services.core.task_service.TaskService.start_run') as mock_run:
             mock_run.return_value = {'task_id': 'success-task-id', 'status': 'запущен'}
             response = admin_client.post(f'/api/scenarios/{scenario_id}/run')
         assert response.status_code == 202
         task_id = response.get_json()['data']['task_id']
 
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': task_id,
                 'status': 'SUCCESS',
@@ -87,13 +87,13 @@ class TestTaskQueue:
         дождаться завершения, GET /api/tasks/{task_id}.
         Ожидание: статус 200, статус FAILURE, содержит сообщение об ошибке.
         """
-        with patch('app.services.core.task_service.TaskService.start_run') as mock_run:
+        with patch('src.services.core.task_service.TaskService.start_run') as mock_run:
             mock_run.return_value = {'task_id': 'failure-task-id', 'status': 'запущен'}
             response = admin_client.post(f'/api/scenarios/{scenario_id}/run')
         assert response.status_code == 202
         task_id = response.get_json()['data']['task_id']
 
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': task_id,
                 'status': 'FAILURE',
@@ -110,7 +110,7 @@ class TestTaskQueue:
         TestCase30. Два последовательных POST /api/scenarios/{sid}/run.
         Ожидание: обе задачи созданы с разными task_id.
         """
-        with patch('app.services.core.task_service.TaskService.start_run') as mock_run:
+        with patch('src.services.core.task_service.TaskService.start_run') as mock_run:
             mock_run.side_effect = [
                 {'task_id': 'task-id-first', 'status': 'запущен'},
                 {'task_id': 'task-id-second', 'status': 'запущен'},

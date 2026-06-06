@@ -14,7 +14,7 @@ class TestDatasetUpload:
         TestCase4. POST /api/datasets/upload с валидным Excel-файлом.
         Ожидание: статус 202, задача импорта создана, возвращён task_id.
         """
-        with patch('app.services.core.task_service.TaskService.start_import') as mock_import:
+        with patch('src.services.core.task_service.TaskService.start_import') as mock_import:
             mock_import.return_value = {'task_id': 'test-task-id', 'status': 'запущен'}
             data = {
                 'file': (io.BytesIO(b'PK\x03\x04'), 'test.xlsx'),
@@ -33,7 +33,7 @@ class TestDatasetUpload:
         TestCase5. GET /api/tasks/{task_id} после завершения импорта.
         Ожидание: статус 200, статус задачи SUCCESS, данные сохранены в БД.
         """
-        with patch('app.services.core.task_service.TaskService.get_status') as mock_status:
+        with patch('src.services.core.task_service.TaskService.get_status') as mock_status:
             mock_status.return_value = {
                 'task_id': 'test-task-id',
                 'status': 'SUCCESS',

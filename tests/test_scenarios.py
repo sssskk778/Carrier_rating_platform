@@ -3,7 +3,7 @@
 Файл: tests/test_scenarios.py
 """
 import json
-from app import db
+from src import db
 
 class TestScenario:
 
@@ -13,7 +13,7 @@ class TestScenario:
         Ожидание: статус 201, сценарий создан со статусом черновик.
         """
         with admin_client.application.app_context():
-            from app.models import Criterion
+            from src.models import Criterion
             criterion_ids = [c.id for c in Criterion.query.all()[:2]]
 
         response = admin_client.post('/api/scenarios',
@@ -48,7 +48,7 @@ class TestScenario:
         Ожидание: статус 200, веса сохранены.
         """
         with admin_client.application.app_context():
-            from app.models import Criterion, ScenarioCriterion
+            from src.models import Criterion, ScenarioCriterion
             links = ScenarioCriterion.query.filter_by(scenario_id=scenario_id).all()
             codes = []
             for link in links:

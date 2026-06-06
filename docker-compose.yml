@@ -1,28 +1,70 @@
 version: '3.9'
+
 services:
+
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1234
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
       POSTGRES_DB: rating_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   web:
-    image: "carrier-rating:${TAG}"
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:1234@db:5432/rating_db
-      SECRET_KEY: carrier-rating-secret
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-1234}@db:5432/rating_db
+      SECRET_KEY: ${SECRET_KEY:-carrier-rating-secret}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - ./uploads:/app/uploads
+      - uploads:/src/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A worker worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-1234}@db:5432/rating_db
+      SECRET_KEY: ${SECRET_KEY:-carrier-rating-secret}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - uploads:/src/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  uploads:

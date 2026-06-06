@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import json
 import pytest
 import os
-from app import create_app, db as _db
+from src import create_app, db as _db
 
 @pytest.fixture
 def app():
@@ -22,7 +22,7 @@ def app():
     with application.app_context():
         _db.create_all()
 
-        from app.models import User, Criterion
+        from src.models import User, Criterion
         admin = User(username='admin', full_name='Admin', role='admin')
         admin.set_password('admin123')
         user = User(username='user1', full_name='User', role='user')
@@ -77,7 +77,7 @@ def user_client(client):
 def scenario_id(admin_client):
     """Создаёт сценарий и возвращает его ID."""
     with admin_client.application.app_context():
-        from app.models import Criterion
+        from src.models import Criterion
         criterion_ids = [c.id for c in Criterion.query.all()[:2]]
 
     resp = admin_client.post('/api/scenarios',

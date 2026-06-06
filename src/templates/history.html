@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}История запусков{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-head">
+    <a href="{{ url_for('web.index') }}" class="back-arrow">←</a>
+    <h1>История запусков: {{ scenario.name }}</h1>
+    <div class="spacer"></div>
+  </div>
+
+  <div id="runsList">
+    <div class="empty-state">Загрузка...</div>
+  </div>
+</div>
+
+<script>
+const scenarioId = {{ scenario.id }};
+
+async function loadRuns() {
+  const container = document.getElementById('runsList');
+  try {
+    const res = await fetch(`/api/scenarios/${scenarioId}/runs`);
+    if (!res.ok) throw new Error('Ошибка загрузки');
+    const runs = (await res.json()).data;
+
+    if (!runs.length) {
+      container.innerHTML = '<div class="empty-state">Нет запусков</div>';
+      return;
+    }
+
+    container.innerHTML = runs.map(r => `
+      <div class="history-item">
+        <div>
+          <div class="history-item-title">Запуск #${r.id}</div>
+          <div class="history-item-date">${r.started_at ? new Date(r.started_at).toLocaleString('ru-RU') : '—'}</div>
+        </div>
+        <span class="status ${r.status === 'done' ? 'done' : ''}">
+          ${r.status === 'done' ? '✓ Завершён' : r.status}
+        </span>
+        <a href="/runs/${r.id}?from=history" class="btn">Смотреть</a>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="empty-state" style="color:var(--c-danger);">Ошибка загрузки</div>';
+  }
+}
+
+loadRuns();
+</script>
+{% endblock %}

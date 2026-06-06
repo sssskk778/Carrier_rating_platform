@@ -1,8 +1,8 @@
 """
 Точка входа для Celery воркера.
 """
-from app import create_app
-from app.extensions import celery
-import app.tasks
+from src import create_app
+from src.extensions import celery
+import src.tasks
 
-app = create_app()
+src = create_app()

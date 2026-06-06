@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="login-body">
+  <div class="login-card">
+    <h2>Регистрация</h2>
+    <form id="registerForm">
+      <div class="form-group">
+        <label>Логин</label>
+        <input type="text" name="username" required>
+      </div>
+      <div class="form-group">
+        <label>Имя пользователя</label>
+        <input type="text" name="full_name" required>
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%;">Зарегистрироваться</button>
+    </form>
+    <p style="text-align: center; margin-top: 16px;">
+      Уже есть аккаунт? <a href="{{ url_for('auth.login') }}">Войти</a>
+    </p>
+  </div>
+</div>
+
+<script>
+function showMessage(message, isError = false) {
+  const existing = document.querySelector('.toast-message');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = `toast-message ${isError ? 'error' : ''}`;
+  div.textContent = message;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 3000);
+}
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(fd))
+  });
+  const json = await res.json();
+  if (json.ok) {
+    window.location.href = '/';
+  } else {
+    showMessage(json.error, true);
+  }
+});
+</script>
+{% endblock %}
