@@ -30,10 +30,6 @@
 </main>
 
 <script>
-/**
- * Глобальная утилита для fetch-запросов.
- * Обрабатывает потерю сети и нечитаемые ответы сервера.
- */
 async function apiFetch(url, options = {}) {
   try {
     const res = await fetch(url, options);
@@ -55,10 +51,7 @@ async function apiFetch(url, options = {}) {
   }
 }
 
-/**
- * Глобальный обработчик необработанных ошибок JS.
- * Логирует в консоль с деталями.
- */
+
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);
 });

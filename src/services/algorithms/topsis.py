@@ -1,8 +1,23 @@
+"""
+Модуль расчёта рейтинга перевозчиков методом TOPSIS.
+Technique for Order Preference by Similarity to Ideal Solution —
+метод многокритериального принятия решений, ранжирующий альтернативы
+по близости к идеальному и антиидеальному решениям.
+Автор: Лосева Е.А.
+Дата создания: 23.04.2026
+Последнее изменение: 06.05.2026
+Контакт: ekaterinaloseva91@gmail.com
+"""
 import numpy as np
 from typing import List, Tuple, Dict, Any
 
 
 class TopsisService:
+    """
+    Расчёт рейтинга перевозчиков методом TOPSIS.
+    Методы:
+        compute — выполняет расчёт TOPSIS и возвращает scores и debug-инфо.
+    """
 
     def compute(
         self,
@@ -11,7 +26,6 @@ class TopsisService:
         weights: List[float]
     ) -> Tuple[List[float], List[Dict[str, Any]]]:
 
-        # --- проверки ---
         if raw_matrix is None or len(raw_matrix) == 0:
             raise ValueError("Матрица пустая")
 
@@ -58,7 +72,6 @@ class TopsisService:
 
         weights_arr = weights_arr / weight_sum
 
-        # --- TOPSIS ---
         denom = np.sqrt((X ** 2).sum(axis=0))
         denom = np.where(denom == 0, 1, denom)
 

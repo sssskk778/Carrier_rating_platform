@@ -1,5 +1,9 @@
 """
 Импорт данных из Excel в базу данных.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 import pandas as pd
 from datetime import datetime
@@ -11,6 +15,17 @@ from src.models import Dataset, Carrier, Shipment
 
 
 class ExcelImporter:
+    """
+    Импорт данных перевозчиков и перевозок из pandas DataFrame в базу данных.
+    Атрибуты:
+        stats              — словарь со статистикой импорта.
+        valid_carrier_ids  — множество ID перевозчиков, прошедших валидацию.
+    Методы:
+        import_from_dataframes — основной метод импорта: создаёт датасет, вызывает импорт.
+        _import_carriers       — импорт/обновление перевозчиков.
+        _import_shipments      — импорт перевозок с проверкой валидности.
+        _safe_int, _safe_float, _safe_datetime, _safe_bool, _safe_str — безопасное приведение типов.
+    """
 
     def __init__(self):
         self.stats = {

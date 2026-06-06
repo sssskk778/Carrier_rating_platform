@@ -1,5 +1,9 @@
 """
 Сервис управления датасетами.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 from pathlib import Path
 from flask import current_app
@@ -10,6 +14,16 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class DatasetService:
+    """
+    Управление датасетами: валидация, импорт из Excel, удаление.
+    Атрибуты:
+        repo — репозиторий датасетов.
+    Методы:
+        validate_file         — проверка файла перед загрузкой (тип, размер).
+        import_from_file      — полный цикл импорта: предобработка + запись в БД.
+        delete_dataset        — удаление датасета и файла с диска.
+        format_preprocess_report — форматирование отчёта предобработки.
+    """
 
     def __init__(self):
         self.repo = DatasetRepository()
@@ -28,7 +42,6 @@ class DatasetService:
             raise ValueError('Файл не должен превышать 10 МБ')
 
     def import_from_file(self, file_path: str, name: str, description: str = '', skip_preprocess: bool = False) -> dict:
-        """Полный цикл импорта: предобработка + запись в БД."""
         from src.services.data.excel_preprocessor import ExcelPreprocessor
         from src.services.data.excel_importer import ExcelImporter
 

@@ -2,36 +2,23 @@
 Модуль расчета весов критериев методом SWARA.
 Step-wise Weight Assessment Ratio Analysis — метод пошагового
 определения весов на основе экспертного ранжирования критериев.
-
 Автор: Лосева Е.А.
-Дата создания: ДД.ММ.ГГГГ
-Последнее изменение: ДД.ММ.ГГГГ
+Дата создания: 23.04.2026
+Последнее изменение: 05.05.2026
 Контакт: ekaterinaloseva91@gmail.com
 """
 import math
 
 class SwaraService:
     """
-    Назначение:
-        Расчет весов критериев методом SWARA.
-    Параметры:
-        Нет.
-    Возвращает:
-        dict[str, float]: Словарь {код_критерия: вес}, сумма весов = 1.
+    Расчёт весов критериев методом SWARA.
+    Методы:
+        compute          — расчёт весов по ранжированию и s-значениям.
+        validate_s_values — проверка корректности s-значений (>= 0, не NaN).
     """
 
     @staticmethod
     def compute(ranking: list[str], s_values: list[float]) -> dict[str, float]:
-        """
-        Назначение:
-            Расчет весов критериев методом SWARA.
-        Параметры:
-            ranking (list[str]): Критерии от важного к неважному.
-            s_values (list[float]): Сравнительная важность (на сколько % j-1 важнее j).
-        Возвращает:
-            dict[str, float]: {код_критерия: вес}, сумма весов = 1.
-        """
-
         if not isinstance(ranking, list):
             raise TypeError(f"ranking must be list, got {type(ranking).__name__}")
         if not isinstance(s_values, list):
@@ -77,14 +64,6 @@ class SwaraService:
 
     @staticmethod
     def validate_s_values(s_values: list[float]) -> bool:
-        """
-        Назначение:
-            Проверка корректности значений сравнительной важности.
-        Параметры:
-            s_values (list[float]): Значения сравнительной важности.
-        Возвращает:
-            bool: True если все значения >= 0 и не NaN.
-        """
         if not isinstance(s_values, list):
             return False
         return all(

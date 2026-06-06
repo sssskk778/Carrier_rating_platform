@@ -8,8 +8,6 @@
     <a href="{{ url_for('web.dataset_page') }}" class="back-arrow">←</a>
     <h1>Перевозчики</h1>
   </div>
-
-  <!-- Статистика -->
   <div class="stats-banner" id="statsBanner">
     <div>
       <h3>Всего перевозчиков</h3>
@@ -24,8 +22,6 @@
       <div class="value" id="fleetTypesCount">-</div>
     </div>
   </div>
-
-  <!-- Фильтры и поиск -->
   <div class="filters-bar">
     <div class="filter-group search-group">
       <label>Поиск</label>
@@ -46,7 +42,6 @@
     <button class="btn-reset" onclick="resetFilters()" style="height: 40px; align-self: flex-end;">Сбросить</button>
   </div>
 
-  <!-- Таблица -->
   <div class="carrier-table">
     <table>
       <thead>
@@ -65,7 +60,6 @@
 
   <div class="results-info" id="resultsInfo"></div>
 
-  <!-- Пагинация -->
   <div class="pagination" id="pagination"></div>
 </div>
 

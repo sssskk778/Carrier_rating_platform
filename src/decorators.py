@@ -1,3 +1,10 @@
+"""
+Декораторы для контроля доступа.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
+"""
 from functools import wraps
 from flask import session, redirect, url_for, jsonify, request
 from src import db

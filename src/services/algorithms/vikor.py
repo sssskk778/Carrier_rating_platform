@@ -1,9 +1,25 @@
+"""
+Модуль расчёта рейтинга перевозчиков методом VIKOR -
+метод многокритериальной оптимизации и компромиссного решения,
+ранжирующий альтернативы по близости к идеальному решению
+с учётом групповой полезности и индивидуального сожаления.
+Автор: Лосева Е.А.
+Дата создания: 23.04.2026
+Последнее изменение: 05.05.2026
+Контакт: ekaterinaloseva91@gmail.com
+"""
 import numpy as np
 from typing import List, Tuple, Dict, Any
 
 
 class VikorService:
-    """Многокритериальная оценка альтернатив методом VIKOR."""
+    """
+    Многокритериальная оценка альтернатив методом VIKOR.
+    Атрибуты:
+        v — вес стратегии большинства (0.5 = компромисс, 1.0 = максимум групповой полезности).
+    Методы:
+        compute — выполняет расчёт VIKOR и возвращает scores и debug-инфо.
+    """
 
     def __init__(self, v: float = 0.5):
         if not (0 <= v <= 1):
@@ -17,7 +33,6 @@ class VikorService:
         weights: List[float]
     ) -> Tuple[List[float], Dict[str, Any]]:
 
-        # --- проверки ---
         if raw_matrix is None or len(raw_matrix) == 0:
             raise ValueError("Матрица пустая")
 
@@ -64,7 +79,6 @@ class VikorService:
 
         weights_arr = weights_arr / weight_sum
 
-        # --- VIKOR ---
         f_best = np.zeros(n)
         f_worst = np.zeros(n)
 

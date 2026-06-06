@@ -1,3 +1,10 @@
+"""
+Конфигурация
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
+"""
 import os
 from pathlib import Path
 

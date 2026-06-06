@@ -2,8 +2,8 @@
 Модуль API маршрутов Carrier Rating Platform.
 
 Автор: Лосева Е.А.
-Дата создания: ДД.ММ.ГГГГ
-Последнее изменение: ДД.ММ.ГГГГ
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
 Контакт: ekaterinaloseva91@gmail.com
 """
 import logging
@@ -177,11 +177,6 @@ def criteria():
         description: Список критериев
     """
     return success([serialize_criterion(c) for c in criterion_repo.get_all()])
-
-
-# =============================================================================
-# SCENARIOS
-# =============================================================================
 
 @api_bp.get('/scenarios/<int:sid>')
 @login_required

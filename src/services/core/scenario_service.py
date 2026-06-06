@@ -1,6 +1,11 @@
 """
 Сервис управления сценариями оценки.
 Содержит только бизнес-логику: создание, обновление, удаление, веса SWARA.
+
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 from src import db
 from src.models import Scenario, ScenarioCriterion
@@ -9,6 +14,19 @@ from src.repositories import ScenarioRepository, CriterionRepository
 
 
 class ScenarioService:
+    """
+    Управление сценариями: создание, обновление, удаление, SWARA-веса.
+    Атрибуты:
+        repo     — репозиторий сценариев.
+        criteria — репозиторий критериев.
+    Методы:
+        create            — создание нового сценария.
+        update            — обновление существующего сценария.
+        delete            — удаление сценария.
+        set_swara_weights — сохранение ранжирования и s-значений, расчёт весов.
+        _get              — получение сценария по ID с проверкой существования.
+        _sync_criteria    — привязка критериев к сценарию.
+    """
 
     def __init__(self):
         self.repo     = ScenarioRepository()

@@ -9,6 +9,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
       POSTGRES_DB: rating_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -31,6 +33,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    command: sh -c "flask db upgrade && python -m src.seed && python run.py"
     ports:
       - "8000:8000"
     environment:
@@ -39,7 +42,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - uploads:/src/uploads
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -58,7 +61,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - uploads:/src/uploads
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy

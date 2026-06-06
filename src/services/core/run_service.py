@@ -1,5 +1,10 @@
 """
 Сервис запуска расчёта рейтинга перевозчиков.
+
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 import json
 import math
@@ -18,30 +23,34 @@ from src.services.algorithms.topsis import TopsisService
 from src.services.algorithms.vikor import VikorService
 
 
-# --- Пороги отсева перевозчиков --------------------------------------------
-# Ключ — код критерия (поле `code` в таблице criteria). ОБЯЗАТЕЛЬНО приведите
-# эти коды в соответствие с реальными кодами в вашей БД.
-#   'min' — значение должно быть НЕ НИЖЕ порога,
-#   'max' — значение должно быть НЕ ВЫШЕ порога.
-# Пороги заданы в процентах (0–100). Если в матрице хранятся доли (0–1),
-# замените значения на 0.70 / 0.95 / 0.15.
 THRESHOLDS = {
-    'on_time_rate':      ('min', 40.0),   # своевременность доставки, % ≥ 70
-    'cargo_safety_rate':    ('min', 50.0),   # сохранность груза, % ≥ 95
-    'cancellation_rate': ('max', 35.0),   # доля отменённых рейсов, % ≤ 15
+    'on_time_rate':      ('min', 40.0),
+    'cargo_safety_rate': ('min', 50.0),
+    'cancellation_rate': ('max', 35.0),
 }
 
-# Значения поля `kind`, означающие критерий-минимизатор ("чем меньше, тем лучше").
-# Приведите в соответствие с тем, как kind кодируется у вас в TOPSIS/VIKOR.
 COST_KINDS = {'cost', 'min', 'minimize', '-', 'затраты', 'минимизация'}
 
 
 def _is_benefit(kind) -> bool:
-    """True, если критерий — максимизатор (чем больше, тем лучше)."""
     return str(kind).strip().lower() not in COST_KINDS
 
 
 class RunService:
+    """
+    Запуск расчёта рейтинга перевозчиков.
+    Атрибуты:
+        topsis            — сервис расчёта TOPSIS.
+        vikor             — сервис расчёта VIKOR.
+        runs              — репозиторий запусков.
+        results           — репозиторий результатов.
+        scenarios         — репозиторий сценариев.
+        criteria          — репозиторий критериев.
+        scenario_criteria — репозиторий связей сценарий-критерий.
+    Методы:
+        execute — полный цикл расчёта: загрузка данных, SWARA, отсев,
+                  TOPSIS/VIKOR, ранжирование, сохранение результатов.
+    """
 
     def __init__(self):
         self.topsis            = TopsisService()
@@ -98,10 +107,6 @@ class RunService:
             weights       = [swara_weights.get(code, 0.0) for code in selected_codes]
             matrix_np     = np.array(matrix_raw, dtype=float)
 
-            # --- Отсев по порогам -----------------------------------------
-            # Проверяются только те пороговые критерии, что присутствуют среди
-            # выбранных в сценарии. Для отсутствующих критериев проверка
-            # пропускается (держите своевременность/сохранность/отмены в выборе).
             threshold_cols = {
                 selected_codes.index(code): rule
                 for code, rule in THRESHOLDS.items()
@@ -112,7 +117,7 @@ class RunService:
                 for col, (direction, limit) in threshold_cols.items():
                     val = row[col]
                     if val is None or math.isnan(val):
-                        return False  # не можем проверить порог — исключаем
+                        return False
                     if direction == 'min' and val < limit:
                         return False
                     if direction == 'max' and val > limit:
@@ -130,7 +135,6 @@ class RunService:
             carriers_list = [carriers_list[i] for i in kept]
             matrix_np     = matrix_np[kept]
 
-            # --- Расчёт ----------------------------------------------------
             if method == 'vikor':
                 scores, _   = self.vikor.compute(matrix_np, kinds, weights)
                 method_name = 'VIKOR'
@@ -138,9 +142,6 @@ class RunService:
                 scores, _   = self.topsis.compute(matrix_np, kinds, weights)
                 method_name = 'TOPSIS'
 
-            # --- Ранжирование с тай-брейком по самому весомому критерию ----
-            # При равном score выше встаёт перевозчик с лучшим значением
-            # критерия с максимальным весом (с учётом направления критерия).
             top_idx        = int(np.argmax(weights))
             top_is_benefit = _is_benefit(kinds[top_idx])
 

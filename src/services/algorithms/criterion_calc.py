@@ -1,6 +1,10 @@
 """
 Модуль расчёта критериев оценки перевозчиков.
 8 критериев с двухпериодным взвешиванием (60 дней / 360 дней).
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 from datetime import datetime, timedelta
 from src.repositories import CarrierRepository, ShipmentRepository
@@ -19,6 +23,29 @@ MIN_RECENT   = 3
 
 
 class CriteriaCalculator:
+    """
+    Расчёт 8 критериев для оценки перевозчиков с двухпериодным взвешиванием.
+    Атрибуты:
+        today        — текущая дата.
+        cutoff_short — граница короткого периода (60 дней назад)
+        cutoff_long  — граница длинного периода (360 дней назад)
+        carriers     — список всех перевозчиков (загружается в build_matrix)
+        shipments    — список перевозок за длинный период (загружается в build_matrix)
+        _carriers_repo  — репозиторий перевозчиков
+        _shipments_repo — репозиторий перевозок
+    Методы:
+        build_matrix     — загружает данные, считает критерии, возвращает матрицу
+        _split           — разделяет перевозки на короткий и длинный периоды
+        _weighted_ratio  — двухпериодное взвешенное отношение (доля с условием)
+        _on_time         — своевременность доставки (%)
+        _cancellation    — доля отменённых перевозок (%)
+        _cargo_safety    — сохранность груза (% без повреждений и потерь)
+        _accident        — частота ДТП с учётом тяжести и вины перевозчика (%)
+        _tracking        — доля перевозок с GPS-трекингом (%)
+        _pod             — доля перевозок с подтверждением доставки (%)
+        _feedback        — средневзвешенная оценка клиентов (1–5)
+        _rpk             — средневзвешенная ставка за километр (руб/км)
+    """
 
     def __init__(self):
         self.today        = datetime.now().date()
@@ -30,7 +57,6 @@ class CriteriaCalculator:
         self._shipments_repo = ShipmentRepository()
 
     def build_matrix(self, selected_codes: list) -> tuple:
-        """Загружает данные и возвращает (matrix_raw, carriers_list, calculated_data)."""
         self.carriers  = self._carriers_repo.get_all()
         self.shipments = self._shipments_repo.get_since(self.cutoff_long)
 
@@ -102,7 +128,6 @@ class CriteriaCalculator:
         ), 2)
 
     def _accident(self, delivered) -> float:
-        """Взвешенная частота аварий с учётом тяжести (инцидентов на рейс × 100%)."""
         recent, history = self._split(delivered)
         result, total_w = 0.0, 0.0
         for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
@@ -124,7 +149,6 @@ class CriteriaCalculator:
         return self._weighted_ratio(delivered, lambda s: bool(s.has_pod))
 
     def _feedback(self, delivered) -> float:
-        """Средневзвешенная оценка клиентов (1-5)."""
         recent, history = self._split(delivered)
         result, total_w = 0.0, 0.0
         for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:
@@ -136,7 +160,6 @@ class CriteriaCalculator:
         return round(result / total_w, 2) if total_w > 1e-12 else 0.0
 
     def _rpk(self, delivered) -> float:
-        """Средневзвешенная ставка за км (руб/км)."""
         recent, history = self._split(delivered)
         result, total_w = 0.0, 0.0
         for group, w in [(recent, WEIGHT_SHORT), (history, WEIGHT_LONG)]:

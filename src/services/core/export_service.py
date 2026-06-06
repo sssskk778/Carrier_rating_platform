@@ -1,6 +1,10 @@
 """
 Сервис экспорта результатов ранжирования.
 Содержит только бизнес-логику: формирование Excel-файла.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 import io
 import openpyxl
@@ -8,6 +12,11 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 
 class ExportService:
+    """
+    Экспорт результатов ранжирования в Excel.
+    Методы:
+        build_excel_results — формирует Excel-файл с результатами и возвращает байты.
+    """
 
     def build_excel_results(self, results: list) -> bytes:
         wb = openpyxl.Workbook()

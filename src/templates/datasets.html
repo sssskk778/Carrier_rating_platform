@@ -186,7 +186,6 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
 
     if (!res.ok) throw new Error(json.error || 'Ошибка импорта');
 
-    // Опрашиваем статус задачи пока не завершится
     showToast('Загрузка файла принята, обрабатывается...', 'success');
 
     const taskId = json.data.task_id;

@@ -1,5 +1,10 @@
 """
 Сервис аутентификации пользователей.
+
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 from src import db
 from src.models import User
@@ -7,6 +12,14 @@ from src.repositories import UserRepository
 
 
 class AuthService:
+    """
+    Аутентификация пользователей: вход и регистрация.
+    Атрибуты:
+        users — репозиторий пользователей.
+    Методы:
+        login    — проверка учётных данных и вход в систему.
+        register — создание нового пользователя.
+    """
 
     def __init__(self):
         self.users = UserRepository()

@@ -1,6 +1,11 @@
 """
 Фоновые задачи Celery.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
+
 import logging
 from src.extensions import celery
 from src.services.core.run_service import RunService

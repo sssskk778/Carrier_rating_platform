@@ -1,5 +1,9 @@
 """
-Сериализаторы — преобразование моделей БД в словари для JSON-ответов.
+Сериализаторы, для преобразования моделей БД в словари для JSON-ответов.
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 import json
 from src.models import Dataset, Carrier, Scenario, Run, RunResult, Criterion

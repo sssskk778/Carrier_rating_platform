@@ -1,5 +1,10 @@
 """
-Веб-маршруты — возвращают HTML-страницы.
+Модуль Web маршрутов с разграничением прав доступа по ролям
+
+Автор: Лосева Е.А.
+Дата создания: 13.03.2026
+Последнее изменение: 01.06.2026
+Контакт: ekaterinaloseva91@gmail.com
 """
 import logging
 
@@ -20,6 +25,7 @@ scenario_repo = ScenarioRepository()
 @web_bp.get('/')
 @login_required
 def index():
+    """Главная страница со списком всех сценариев"""
     try:
         return render_template(
             'index.html',
@@ -37,12 +43,14 @@ def index():
 @web_bp.get('/datasets')
 @login_required
 def dataset_page():
+    """Страница управления наборами данных"""
     return render_template('datasets.html')
 
 
 @web_bp.get('/scenarios/<int:sid>')
 @admin_required
 def scenario_page(sid):
+    """Страница создания (sid=0) или редактирования существующего сценария"""
     try:
         if sid == 0:
             scenario = type('obj', (object,), {
@@ -70,6 +78,7 @@ def scenario_page(sid):
 @web_bp.get('/results/<int:sid>')
 @login_required
 def results_page(sid):
+    """Страница с результатами расчётов по сценарию"""
     try:
         scenario = scenario_repo.get_by_id(sid)
 
@@ -89,6 +98,7 @@ def results_page(sid):
 @web_bp.get('/runs/<int:rid>')
 @login_required
 def run_page(rid):
+    """Страница с детальной информацией о запуске"""
     try:
         run = run_repo.get_by_id(rid)
 
@@ -108,12 +118,14 @@ def run_page(rid):
 @web_bp.get('/carriers')
 @login_required
 def carriers_page():
+    """Страница со списком перевозчиков"""
     return render_template('carriers.html')
 
 
 @web_bp.get('/scenarios/<int:sid>/history')
 @login_required
 def scenario_history(sid):
+    """Страница истории изменений сценария"""
     try:
         scenario = scenario_repo.get_by_id(sid)
 
@@ -132,4 +144,5 @@ def scenario_history(sid):
 
 @web_bp.app_errorhandler(403)
 def forbidden(_):
+    """Обработчик ошибки доступа 403"""
     return render_template('403.html'), 403
