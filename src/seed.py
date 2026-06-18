@@ -33,7 +33,7 @@ def seed_everything():
         db.session.add(user)
 
     db.session.commit()
-    print('Пользователи готовы: admin / admin123, logist / logist123')
+    print('Пользователи готовы')
 
     if Criterion.query.count() == 0:
         criteria_list = [
