@@ -2,30 +2,33 @@
 {% block title %}Сценарий{% endblock %}
 
 {% block content %}
-<div class="panel">
+<div class="panel scenario-panel">
   <div class="panel-head">
     <a href="{{ url_for('web.index') }}" class="back-arrow">←</a>
     <h1>Настройка сценария</h1>
     <div class="spacer"></div>
   </div>
 
-  <form id="scenarioEditForm" class="stack">
+  <form id="scenarioEditForm" class="stack scenario-form">
     <input id="name" type="text" value="{{ scenario.name }}" placeholder="Название сценария">
-    <textarea id="description" rows="2" placeholder="Описание">{{ scenario.description or '' }}</textarea>
-
     <select id="method">
       <option value="topsis">TOPSIS</option>
       <option value="vikor">VIKOR</option>
     </select>
+    <textarea id="description" rows="2" placeholder="Описание">{{ scenario.description or '' }}</textarea>
 
-    <div id="criteriaBox" class="criteria-container"></div>
-    <div id="criteriaLoading" class="empty-state" style="display:none;">Загрузка...</div>
+    <div class="config-cols">
+      <div class="config-col">
+        <h3 class="col-title">Критерии оценки</h3>
+        <div id="criteriaBox" class="criteria-container"></div>
+        <div id="criteriaLoading" class="empty-state" style="display:none;">Загрузка...</div>
+      </div>
 
-    <div id="swaraPanel" style="margin-top:16px; display:none;">
-      <h3 class="swara-section-title">Настройка весовых коэффициентов</h3>
-      <p class="swara-section-hint">Отсортируйте критерии по важности</p>
-      <div id="swaraContainer" class="swara-container"></div>
-
+      <div id="swaraPanel" class="config-col" style="display:none;">
+        <h3 class="col-title">Весовые коэффициенты</h3>
+        <p class="swara-section-hint">Отсортируйте критерии по важности</p>
+        <div id="swaraContainer" class="swara-container"></div>
+      </div>
     </div>
 
     <div class="scenario-form-actions">
@@ -36,9 +39,35 @@
 </div>
 
 <style>
-.swara-section-title  { margin: 0 0 8px; font-size: 16px; font-weight: 500; color: var(--c-navy); }
-.swara-section-hint   { font-size: 13px; color: var(--c-muted); margin-bottom: 16px; }
-.scenario-form-actions { display: flex; justify-content: space-between; margin-top: 16px; }
+.scenario-form { gap: 12px; }
+#method { width: 100%; }
+#description { resize: vertical; }
+
+.config-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.config-col { flex: 1 1 320px; min-width: 300px; }
+.col-title { margin: 0 0 10px; font-size: 15px; font-weight: 500; color: var(--c-navy); }
+
+.criteria-group { margin-bottom: 8px; }
+.criteria-group-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 10px; font-size: 13px; font-weight: 500; }
+.criteria-group-header .toggle-icon { font-size: 11px; transition: transform .15s; }
+.criteria-group-header.collapsed .toggle-icon { transform: rotate(-90deg); }
+.criteria-group-header.collapsed + .criteria-grid { display: none; }
+.criteria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 2px 2px 6px; }
+.check-card { display: flex; align-items: center; gap: 8px; padding: 7px 10px; width: auto; height: 100%; }
+.criterion-name { font-size: 13px; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+
+.swara-section-hint { font-size: 12px; color: var(--c-muted); margin: 0 0 10px; }
+.swara-container { display: flex; flex-direction: column; gap: 6px; }
+.swara-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; }
+.swara-right { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; white-space: nowrap; }
+.swara-input { width: 54px; padding: 3px 6px; }
+.swara-hint { margin-left: auto; font-size: 12px; color: var(--c-muted); }
+
+.scenario-form-actions { display: flex; justify-content: space-between; margin-top: 8px; }
 </style>
 
 <script>
@@ -133,31 +162,23 @@ async function loadCriteria() {
     const criteriaMap = new Map(criteriaList.map(c => [c.code, c]));
     const selected = new Set((currentScenario.criterion_ids || []).map(Number));
 
-    let html = '';
-    for (const [groupName, groupData] of Object.entries(CRITERIA_GROUPS)) {
-      const groupCriteria = groupData.keys
-        .map(key => criteriaMap.get(key)).filter(Boolean)
-        .map(c => ({ id: c.id, code: c.code, name: groupData.names[c.code] || c.name }));
-      if (!groupCriteria.length) continue;
+    let html = '<div class="criteria-grid">';
 
-      html += `<div class="criteria-group">
-        <div class="criteria-group-header" data-group="${groupName.replace(/\s/g,'_')}">
-          <span>${groupName}</span><span class="toggle-icon">▼</span>
-        </div>
-        <div class="criteria-grid">`;
-      groupCriteria.forEach(crit => {
-        html += `<label class="check-card" data-id="${crit.id}" data-code="${crit.code}">
-          <input type="checkbox" value="${crit.id}" ${selected.has(crit.id) ? 'checked' : ''}>
+    criteriaList.forEach(crit => {
+      html += `
+        <label class="check-card" data-id="${crit.id}" data-code="${crit.code}">
+          <input type="checkbox"
+                 value="${crit.id}"
+                 ${selected.has(crit.id) ? 'checked' : ''}>
           <span class="criterion-name">${crit.name}</span>
-        </label>`;
-      });
-      html += '</div></div>';
-    }
+        </label>
+      `;
+    });
+
+    html += '</div>';
+
     container.innerHTML = html;
 
-    container.querySelectorAll('.criteria-group-header').forEach(h => {
-      h.addEventListener('click', function() { this.classList.toggle('collapsed'); });
-    });
     container.querySelectorAll('.check-card input').forEach(cb => {
       cb.addEventListener('change', () => {
         swaraRanking = swaraRanking.filter(code => getCheckedCodes().includes(code));

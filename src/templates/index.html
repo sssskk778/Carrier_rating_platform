@@ -15,11 +15,13 @@
       {% for s in scenarios %}
         {% if current_user.role == 'admin' or s.status == 'расчёт выполнен' %}
         <div class="scenario-card color-{{ loop.index % 6 + 1 }}" data-scenario-id="{{ s.id }}">
+
           <div class="card-header">
             <div class="card-title">
-              <span class="scenario-id">#{{ s.id }}</span>
+              <span class="scenario-id">{{ s.id }}</span>
               <h3 class="scenario-name">{{ s.name }}</h3>
             </div>
+
             <div class="card-status">
               <span class="status {% if s.status == 'расчёт выполнен' %}done{% elif s.status == 'черновик' %}draft{% elif s.status == 'в обработке' %}processing{% endif %}">
                 {% if s.status == 'расчёт выполнен' %}Выполнен
@@ -44,12 +46,24 @@
 
           <div class="card-actions">
             {% if current_user.role == 'admin' %}
-              <a href="{{ url_for('web.scenario_page', sid=s.id) }}" class="icon-link" title="Настройка"><span>⚙️</span></a>
-              <button class="icon-link run-scenario-btn" data-scenario-id="{{ s.id }}" title="Рассчитать рейтинг"><span>▶️</span></button>
+              <a href="{{ url_for('web.scenario_page', sid=s.id) }}" class="action-btn">
+                Настройка
+              </a>
+
+              <button class="action-btn run-scenario-btn" data-scenario-id="{{ s.id }}">
+                Запустить расчёт
+              </button>
             {% endif %}
-            <a href="{{ url_for('web.results_page', sid=s.id) }}" class="icon-link" title="Смотреть результаты"><span>📊</span></a>
-            <a href="{{ url_for('web.scenario_history', sid=s.id) }}" class="icon-link" title="История запусков"><span>📋</span></a>
+
+            <a href="{{ url_for('web.results_page', sid=s.id) }}" class="action-btn">
+              Результаты
+            </a>
+
+            <a href="{{ url_for('web.scenario_history', sid=s.id) }}" class="action-btn">
+              История запусков
+            </a>
           </div>
+
         </div>
         {% endif %}
       {% endfor %}
@@ -63,6 +77,32 @@
     </div>
   {% endif %}
 </div>
+
+<style>
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.action-btn {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  background: #f2f2f2;
+  color: #333;
+  text-align: center;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: #e6e6e6;
+}
+</style>
 
 <script>
 function showMessage(message, isError = false) {
@@ -87,8 +127,9 @@ document.querySelectorAll('.run-scenario-btn').forEach(btn => {
     const card          = this.closest('.scenario-card');
     const statusEl      = card.querySelector('.status');
 
-    this.innerHTML = '<span>⏳</span>';
+    this.innerHTML = 'Выполняется...';
     this.disabled  = true;
+
     if (statusEl) {
       statusEl.textContent = 'В обработке';
       statusEl.className   = 'status processing';
@@ -110,8 +151,9 @@ document.querySelectorAll('.run-scenario-btn').forEach(btn => {
       }
 
       showMessage('Расчёт завершён!');
-      this.innerHTML = '<span>▶️</span>';
+      this.innerHTML = 'Запустить расчёт';
       this.disabled  = false;
+
       if (statusEl) {
         statusEl.textContent = 'Выполнен';
         statusEl.className   = 'status done';
@@ -121,6 +163,7 @@ document.querySelectorAll('.run-scenario-btn').forEach(btn => {
       showMessage(err.message, true);
       this.innerHTML = originalHTML;
       this.disabled  = false;
+
       if (statusEl) {
         statusEl.textContent = 'Черновик';
         statusEl.className   = 'status draft';
@@ -129,4 +172,5 @@ document.querySelectorAll('.run-scenario-btn').forEach(btn => {
   });
 });
 </script>
+
 {% endblock %}

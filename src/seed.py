@@ -41,10 +41,10 @@ def seed_everything():
             ('cancellation_rate', 'Доля отменённых рейсов', 'cost'),
             ('cargo_safety_rate', 'Сохранность груза', 'benefit'),
             ('accident_rate', 'Аварийность', 'cost'),
-            ('tracking_compliance', 'Доля рейсов с GPS-трекингом', 'benefit'),
-            ('pod_rate', 'Доля рейсов с POD', 'benefit'),
-            ('feedback_score', 'Средняя оценка клиентов', 'benefit'),
-            ('rate_per_km', 'Средняя ставка за километр', 'cost'),
+            ('tracking_compliance', 'Отслеживание', 'benefit'),
+            ('pod_rate', 'Документооборот', 'benefit'),
+            ('feedback_score', 'Репутация', 'benefit'),
+            ('rate_per_km', 'Стоимость', 'cost'),
         ]
 
         for order, (code, name, kind) in enumerate(criteria_list, 1):
