@@ -22,14 +22,14 @@ def seed_everything():
         admin.set_password('admin123')
         db.session.add(admin)
 
-    user = User.query.filter_by(username='logist').first()
+    user = User.query.filter_by(username='user').first()
     if not user:
         user = User(
-            username='logist',
+            username='user',
             full_name='Логист Иванов',
             role='user'
         )
-        user.set_password('logist123')
+        user.set_password('user123')
         db.session.add(user)
 
     db.session.commit()
